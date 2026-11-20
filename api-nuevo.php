@@ -73,10 +73,10 @@ function login(PDO $pdo) {
     $pass  = $_POST['password'] ?? '';
 
     try {
-        // Inicio2 devuelve username y password_hash; la contraseña se comprueba aquí
-        // con password_verify (su 2.º parámetro y el OUT no se usan).
+        // 2 marcadores (?, ?) → 2 valores. @eror va escrito en el SQL, no en el array.
         $filas = consultar($pdo, 'CALL Inicio2(?, ?, @eror)', [$login, '']);
     } catch (PDOException $e) {
+        error_log('Login: ' . $e->getMessage());   // para ver el error real en el log de PHP
         ir('index-nuevo.html?error=login');
     }
     $fila = $filas[0] ?? null;
@@ -87,8 +87,8 @@ function login(PDO $pdo) {
         ir('cartas-nuevo.html');
     }
     ir('index-nuevo.html?error=login');
-}
 
+}
 function registro(PDO $pdo) {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') ir('index-nuevo.html');
 

@@ -6,7 +6,7 @@
    ========================================================== */
 'use strict';
 
-const API = 'api.php?accion=';
+const API = 'api-nuevo.php?accion=';
 
 const PERIODOS = {
     triasico:  { n: 'Triásico',  r: '252–201 M.a.', e: '🌵' },

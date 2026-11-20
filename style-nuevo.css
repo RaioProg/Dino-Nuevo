@@ -244,6 +244,7 @@ body.login {
 body.app {
     display: flex;
     justify-content: center;
+    flex-direction: column;
     padding: 30px 0;
     background: #4a5228;
     font-family: system-ui, sans-serif;
@@ -256,6 +257,7 @@ body.app {
     grid-template-columns: minmax(0, 1fr);
     gap: 50px;
     padding: 16px;
+    margin: 0 auto;
     border: 2px solid #e8e2cc;
     border-radius: 30px;
     background: #5d6632;
@@ -264,6 +266,7 @@ body.app {
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-direction: wrap;
     border: 2px solid #e0a63e;
     border-radius: 8px;
     background: rgba(0, 0, 0, 0.15);
@@ -892,6 +895,41 @@ body.app {
     width: 100%;
     height: 100%;
 
+}
+
+
+.side{
+    width: 50%;
+    max-width: 100%;
+    height: 760px;
+    padding: 30px;
+    background-color: var(--tarjeta);
+    box-shadow: 0 0 20px 2px #2124129c;
+    border: 2px solid #42491d;
+    border-radius: 8px;
+}
+.usuario-trade{
+    
+}
+
+.trade, .control-trade{
+    margin: 40px auto;
+    border: none;
+    border-radius: 8px;
+    width: 90%;
+    box-shadow: 0 0 20px 2px #4a5228;
+    background-color:#4a5228 ;
+    display: flex;
+    flex-direction: wrap;
+}
+.control-trade{
+    padding: 20px;
+    width: 10%;
+}
+.zona-trade{
+    border-color: var(--dorado);
+    border-bottom:1px;
+    border-radius: 10px;
 }
 
 @media (prefers-reduced-motion: reduce) {
