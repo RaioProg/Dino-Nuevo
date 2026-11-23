@@ -326,6 +326,35 @@ function iniciarFiltros() {
 }
 
 
+/* ===========================================================
+    5. TRADE
+   =========================================================== */
+   
+function htmlCartaMini(d) {
+    const per = norm(d.periodo);
+    const p = PERIODOS[per] || { n: d.periodo, r: '', e: '🦴' };
+    return `<article class="card mini ${esc(per)}" title="${esc(d.nombre)} · ${esc(p.n)} · ❤️ ${d.hp}" aria-label="${esc(d.nombre)}, ${esc(p.n)}">
+      <div class="inner">
+        <div class="art">
+          <div class="ph" aria-hidden="true">🦖</div>
+          <img src="${esc(d.imagenUrl)}" alt="${esc(d.nombre)}" loading="lazy" onerror="this.remove()">
+          ${d.copias > 1 ? `<div class="copias">×${d.copias}</div>` : ''}
+        </div>
+        <div class="mini-name">${esc(d.nombre)}</div>
+        <div class="mini-hp">❤️ ${d.hp}</div>
+      </div>
+    </article>`;
+}
+
+function RenderColeccionTrade() {
+    const visibles = filtrar(coleccion);
+    $('grid').innerHTML = visibles.map(htmlCarta).join('');
+}
+
+
+
+
+
 /* ==========================================================
    ARRANQUE: cada página activa solo lo suyo
    ========================================================== */
