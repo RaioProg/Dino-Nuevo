@@ -128,6 +128,7 @@ function iniciarCarrusel() {
    3. COLECCIÓN Y SOBRES
    ========================================================== */
 let coleccion = [];
+let coleccionMini = [];
 let restante = 0;                 // segundos hasta poder abrir otro sobre
 let intervaloContador = null;
 let temporizadorReveladas = null;
@@ -243,6 +244,7 @@ async function cargarColeccion() {
     $('nombre-usuario').textContent = data.usuario;
     iniciarContador(data.restante);
     renderColeccion();
+    RenderColeccionTrade();
 }
 
 async function abrirSobre(periodo) {
@@ -275,6 +277,7 @@ async function abrirSobre(periodo) {
     }, 5000);
 
     renderColeccion();
+    RenderColeccionTrade();
     const scroll = document.querySelector('.scroll');
     scroll.scrollTop = scroll.scrollHeight;
 }
@@ -348,9 +351,8 @@ function htmlCartaMini(d) {
 
 function RenderColeccionTrade() {
     const visibles = filtrar(coleccion);
-    $('grid').innerHTML = visibles.map(htmlCarta).join('');
+    $('grid-mini').innerHTML = visibles.map(htmlCartaMini).join('');
 }
-
 
 
 

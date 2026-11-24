@@ -730,6 +730,33 @@ body.app {
     flex: 0 0 auto;        /* la vida nunca se encoge ni se sale */
 }
 
+#grid-mini{
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 16px;
+    padding: 0;
+    overflow-x: scroll;
+}
+
+#grid-mini .card {
+    height: auto;
+    max-height: none;
+    flex-shrink: 0;
+}
+#grid-mini .card {
+    width: 80%;
+    height: auto;
+    max-height: none;
+    flex-shrink: 0;
+    zoom: 1;
+    font-size: 5px;
+}
+#grid-mini .card:hover { transform: none; }
+#grid-mini .art { aspect-ratio: 16 / 10; }
+#grid-mini .top h2 { font-size: 18px; }
+#grid-mini .card .tag { display: none; }
+
 #grid {
     display: flex;
     flex-direction: column;
@@ -904,8 +931,9 @@ body.app {
     background-color: var(--tarjeta);
     box-shadow: 0 0 20px 2px #2124129c;
     border: 2px solid #42491d;
-    border-radius: 8px;
-    align-items: center;
+    border-radius: 8px; 
+    display: flex;
+    flex-direction: column;
 }
 
 
@@ -930,12 +958,34 @@ body.app {
 }
 .control-trade img{
     width: 100px;
-    filter: invert(15%) sepia(95%) saturate(3000%) hue-rotate(358deg) brightness(90%) contrast(115%);
+    filter: none;
 }
-.nav{
+.control-trade img.accept{
+    filter: invert(77%) sepia(96%) saturate(1500%) hue-rotate(3deg) brightness(70%) contrast(104%);
+}
+.upper{
     border-color: var(--dorado);
     border-bottom:1px;
     border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    height: 40%;
+    padding: 10px;
+    background-color: var(--campo);
+    width: 100%;
+}
+.nav{
+    height: 50px;
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    padding: 10px 25px;
+    align-items: center;
+
+}
+.zona-trade{
+    height: 100%;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1014,17 +1064,7 @@ button{
     width: 150px;
     aspect-ratio: 4;
 }
-.nav{
-    display: flex;
-    justify-content: space-around;
 
-
-    flex-wrap: wrap-reverse;
-    align-items: center;
-    align-content: flex-end;
-    height: 290px;
-    padding: 10px;
-}
 
 button{
       display: inline-flex;
@@ -1062,6 +1102,3 @@ button:hover {
   transform: scale(1.03);
 }
 
-.nav{
-    background-color: var(--campo);
-}
