@@ -1,4 +1,4 @@
-
+drop database dinocards;
 create database if not exists dinocards;
 use dinocards;
 
@@ -35,8 +35,35 @@ create table colecciones(
   foreign key (dinosaurio_id) references dinosaurios(id)
 );
 
-delimiter $$
+create table solicitudes(solicitud_id int primary key auto_increment, fecha datetime not null, fk_usuario_A int not null, fk_usuario_B int null, estado enum('Pendiente', 'Aceptada', 'Cancelada'));
+create table negociacion(negociacion_id int primary key auto_increment,fk_usuario_A int not null,fk_usuario_B int not null,coleccion_mesa_A varchar (1000),estado enum('abierto', 'cerrado'));
 
+drop procedure if exists ListaUsuariosReadyTrading;
+Delimiter $$
+create procedure ListaUsuariosReadyTrading()
+begin
+	select id, username from usuarios where listo_negociar = 1;
+end ;
+delimiter ;
+
+drop procedure if exists ListoNegocio;
+Delimiter $$
+create procedure ListoNegocio()
+begin
+	declare aux int;
+    set aux = null;
+    select id from usuarios where id = _usuario_id into aux;
+    if(aux is null) then 
+		set _res = -1;
+	else
+	update usuario set lista_negociar = 1 where id = _usuario_id;
+	set res = 0;
+    end if;
+end ;
+delimiter ;
+
+
+delimiter $$
 drop procedure if exists Registro2$$
 create procedure Registro2(in _username varchar(64), in _email varchar(255), in _password_hash varchar(255), out eror int)
 begin
@@ -91,6 +118,10 @@ begin
 end$$
 
 delimiter ;
+
+alter table usuarios add column listo_negociar int not null default 0;
+
+
 
 INSERT INTO dinosaurios (nombre, especie, periodo, imagen_url, altura, largo, peso, hp, vigor, ataque, defensa, agilidad) VALUES
 ('Tyrannosaurus', 'Tyrannosaurus rex', 'cretacico', 'https://i.insider.com/647108733be3b50019f7121b?width=1136&format=jpeg', 3.66, 12.30, 8.40, 950, 80, 98, 70, 55),
