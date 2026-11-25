@@ -332,11 +332,18 @@ function iniciarFiltros() {
 /* ===========================================================
     5. TRADE
    =========================================================== */
-   
+  
+$('grid-mini').addEventListener('click', (e) => {
+  const carta = e.target.closest('.mini');
+  if (!carta) return;      
+  carta.classList.toggle('selected');
+  RenderColeccionSelected();
+});
+
 function htmlCartaMini(d) {
     const per = norm(d.periodo);
-    const p = PERIODOS[per] || { n: d.periodo, r: '', e: '🦴' };
-    return `<article class="card mini ${esc(per)}" title="${esc(d.nombre)} · ${esc(p.n)} · ❤️ ${d.hp}" aria-label="${esc(d.nombre)}, ${esc(p.n)}">
+    const p = PERIODOS[per] || { n: d.periodo, r: '', e: '🦴' };    
+    return `<article id="mini" class="card mini ${esc(per)}"  data-id="${esc(d.nombre)}" title="${esc(d.nombre)} · ${esc(p.n)} · ❤️ ${d.hp}" aria-label="${esc(d.nombre)}, ${esc(p.n)}">
       <div class="inner">
         <div class="art">
           <div class="ph" aria-hidden="true">🦖</div>
@@ -350,13 +357,40 @@ function htmlCartaMini(d) {
 }
 
 function RenderColeccionTrade() {
-    const visibles = filtrar(coleccion);
-    $('grid-mini').innerHTML = visibles.map(htmlCartaMini).join('');
+  // colección SIN las elegidas
+  const visibles = filtrar(coleccion).filter(d => !seleccionadas.has(String(d.nombre)));
+  $('grid-mini').innerHTML = visibles.map(htmlCartaMini).join('');
 }
 
+function RenderColeccionSelected() {
+  // solo las elegidas
+  const elegidas = filtrarSelected();
+  $('zona-trade').innerHTML = elegidas.map(htmlCartaMini).join('');
+}
 
+function filtrarSelected() {
+  return coleccion.filter(d => seleccionadas.has(String(d.nombre)));
+}
 
+const seleccionadas = new Set();   // ids de las cartas elegidas
 
+$('grid-mini').addEventListener('click', (e) => {
+  const carta = e.target.closest('.mini');
+  if (!carta) return;
+  const id = carta.dataset.id;
+  if (seleccionadas.has(id)) {carta.classList.toggle('selected'); seleccionadas.delete(id);}
+  else {seleccionadas.add(id); }
+
+  RenderColeccionSelected();           
+});
+$('zona-trade').addEventListener('click', (e) => {
+  const carta = e.target.closest('.mini');
+  if (!carta) return;
+
+  seleccionadas.delete(carta.dataset.id);
+  RenderColeccionTrade();
+  RenderColeccionSelected();
+});
 /* ==========================================================
    ARRANQUE: cada página activa solo lo suyo
    ========================================================== */
