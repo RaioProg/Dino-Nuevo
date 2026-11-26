@@ -1,4 +1,4 @@
-drop database dinocards;
+drop database if exists dinocards;
 create database if not exists dinocards;
 use dinocards;
 
@@ -11,7 +11,8 @@ create table usuarios(
   username varchar(64) not null unique,
   email varchar(255) not null unique,
   password_hash varchar(255) not null,
-  ultimo_sobre datetime null
+  ultimo_sobre datetime null,
+  listo_negociar int not null default 0
 );
 
 create table dinosaurios(
@@ -36,32 +37,65 @@ create table colecciones(
 );
 
 create table solicitudes(solicitud_id int primary key auto_increment, fecha datetime not null, fk_usuario_A int not null, fk_usuario_B int null, estado enum('Pendiente', 'Aceptada', 'Cancelada'));
-create table negociacion(negociacion_id int primary key auto_increment,fk_usuario_A int not null,fk_usuario_B int not null,coleccion_mesa_A varchar (1000),estado enum('abierto', 'cerrado'));
+create table negociacion(negociacion_id int primary key auto_increment,fk_usuario_A int not null,fk_usuario_B int not null,coleccion_mesa_A varchar (1000),estado enum('abierto', 'cerrado'), coleccion_mesa_B varchar(1000));
 
 drop procedure if exists ListaUsuariosReadyTrading;
 Delimiter $$
 create procedure ListaUsuariosReadyTrading()
 begin
 	select id, username from usuarios where listo_negociar = 1;
-end ;
+end$$
 delimiter ;
 
 drop procedure if exists ListoNegocio;
-Delimiter $$
-create procedure ListoNegocio()
+delimiter $$
+create procedure ListoNegocio(in _usuario_id int, out _res int)
 begin
-	declare aux int;
-    set aux = null;
-    select id from usuarios where id = _usuario_id into aux;
-    if(aux is null) then 
-		set _res = -1;
-	else
-	update usuario set lista_negociar = 1 where id = _usuario_id;
-	set res = 0;
-    end if;
-end ;
+  if not exists (select 1 from usuarios where id = _usuario_id) then
+    set _res = -1;
+  else
+    update usuarios set listo_negociar = 1 where id = _usuario_id;
+    set _res = 0;
+  end if;
+end$$
 delimiter ;
 
+drop procedure if exists IntercambiarCartas;
+delimiter $$
+create procedure IntercambiarCartas(
+  in _usuario1 int,
+  in _usuario2 int,
+  in _cartas1 varchar(1000),   -- ids que da el usuario 1, ej: '3,7,12'
+  in _cartas2 varchar(1000)    -- ids que da el usuario 2, ej: '5,9'
+)
+begin
+  declare v_id int;
+
+  -- Cartas del usuario 1 -> usuario 2
+  set _cartas1 = concat(_cartas1, ',');
+  while length(_cartas1) > 0 do
+    set v_id = substring_index(_cartas1, ',', 1);
+    set _cartas1 = substring(_cartas1, locate(',', _cartas1) + 1);
+
+    update colecciones
+    set usuario_id = _usuario2
+    where usuario_id = _usuario1 and dinosaurio_id = v_id
+    limit 1;
+  end while;
+
+  -- Cartas del usuario 2 -> usuario 1
+  set _cartas2 = concat(_cartas2, ',');
+  while length(_cartas2) > 0 do
+    set v_id = substring_index(_cartas2, ',', 1);
+    set _cartas2 = substring(_cartas2, locate(',', _cartas2) + 1);
+
+    update colecciones
+    set usuario_id = _usuario1
+    where usuario_id = _usuario2 and dinosaurio_id = v_id
+    limit 1;
+  end while;
+end$$
+delimiter ;
 
 delimiter $$
 drop procedure if exists Registro2$$
@@ -94,7 +128,7 @@ delimiter $$
 drop procedure if exists ObtenerColeccion$$
 create procedure ObtenerColeccion(in p_username varchar(64))
 begin
-  select d.nombre, d.especie, d.periodo, d.imagen_url as imagenUrl,
+  select d.id, d.nombre, d.especie, d.periodo, d.imagen_url as imagenUrl,
          d.altura, d.largo, d.peso, d.hp, d.vigor, d.ataque, d.defensa, d.agilidad,
          count(*) as copias
   from colecciones c
@@ -119,7 +153,7 @@ end$$
 
 delimiter ;
 
-alter table usuarios add column listo_negociar int not null default 0;
+ 
 
 
 

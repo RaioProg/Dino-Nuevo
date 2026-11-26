@@ -161,8 +161,15 @@
         
  
     </main>
+    <div id="Matchmaking" class="Matchmaking oculto">
+        <h1>Matchmaking</h1>
+        <label>-Añade aqui el nombre de usuario con el que querrias tradear cartas-</label><br>
+        <input type="text" placeholder="Nombre usuario: pepito234">
+        <button type="submit"></button>
+    </div>
     <section id="" class="caja trade">
             <div class="usuario-trade side">
+                
                 <div class="upper">
                     <div class="nav">
                     <ul><li id="usuario-cant">Objetos registrados: </li></ul>
@@ -173,22 +180,23 @@
                 <div class="scroll"><div id="grid-mini" class="lista-coleccion"></div></div>
             </div>
             <div class="control-trade">
-            <img src="flecha-correcta.png" alt="flecha usuario">
-            <img src="flecha-correcta-inv.png" alt="fecha visitante" srcset="">
+            <button id="iniciarTradeo">Tradeo</button>
+            <img src="flecha-correcta.png" alt="flecha usuario" id="flecha-usu">
+            <img src="flecha-correcta-inv.png" alt="fecha visitante" srcset="" id="flecha-inv">
             </div>
             <div class="invitado-trade side">
                 <div class="upper inv">
                     <div class="nav">
                     <ul><li id="invitado-cant">Objetos registrados: </li></ul>
                     </div>
-                    <img src="Interrogacion-nueva.png" alt="interrogacion">
+                    <img src="Interrogacion-nueva.png" alt="interrogacion" style="max-height: 650px; max-width: 540px; margin: auto;">
                 </div>
                 
             </div>
         </section>
         <!-- Pie de página -->
         <footer class="caja pie">Pie</footer>
-    <script src="app.js"></script>
+    <script src="app-nuevo.js"></script>
 
 </body>
 </html>
