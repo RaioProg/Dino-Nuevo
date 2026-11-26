@@ -212,22 +212,170 @@ function dinos(PDO $pdo) {
     }
     responder($lista);
 }
+/* ---------- Tradeo ---------- */
 
+function usuarioId(PDO $pdo) {
+    if (empty($_SESSION['username'])) {
+        responder(['error' => 'No has iniciado sesión'], 401);
+    }
+    $f = consultar($pdo, 'SELECT id FROM usuarios WHERE username = ?', [$_SESSION['username']]);
+    if (!$f) responder(['error' => 'Usuario no encontrado'], 401);
+    return (int)$f[0]['id'];
+}
+
+// POST nombre=... -> res: -1 no existe, -2 eres tú, 0 esperando, 1 emparejados
+function buscarOponente(PDO $pdo) {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        responder(['error' => 'Método no permitido'], 405);
+    }
+    $yo     = usuarioId($pdo);
+    $nombre = trim($_POST['nombre'] ?? '');
+    if ($nombre === '') responder(['res' => -1]);
+
+    $stmt = $pdo->prepare('CALL BuscarOponente(?, ?, @res)');
+    $stmt->execute([$yo, $nombre]);
+    $stmt->closeCursor();
+
+    $res = (int)$pdo->query('SELECT @res')->fetchColumn();
+    responder(['res' => $res]);
+}
+
+// GET -> la negociación abierta en la que estoy, o null
+// "3,7,12" -> [3, 7, 12]  (solo enteros positivos)
+function idsCartas($texto) {
+    $ids = array_map('intval', explode(',', (string)$texto));
+    return array_values(array_filter($ids, fn($n) => $n > 0));
+}
+
+// ¿Tiene el usuario todas esas cartas?
+function tieneCartas(PDO $pdo, $usuarioId, array $ids) {
+    $filas = consultar($pdo,
+        'SELECT dinosaurio_id, COUNT(*) AS c FROM colecciones
+         WHERE usuario_id = ? GROUP BY dinosaurio_id', [$usuarioId]);
+    $tiene = [];
+    foreach ($filas as $f) $tiene[(int)$f['dinosaurio_id']] = (int)$f['c'];
+    foreach (array_count_values($ids) as $id => $necesita) {
+        if (($tiene[$id] ?? 0) < $necesita) return false;
+    }
+    return true;
+}
+
+// Mi negociación abierta (o null). Con $bloquear, bloquea la fila.
+function negociacionAbierta(PDO $pdo, $yo, $bloquear = false) {
+    $sql = "SELECT * FROM negociacion
+            WHERE estado = 'abierto' AND ? IN (fk_usuario_A, fk_usuario_B)
+            LIMIT 1" . ($bloquear ? ' FOR UPDATE' : '');
+    $f = consultar($pdo, $sql, [$yo]);
+    return $f[0] ?? null;
+}
+
+// GET: estado de mi negociación, con las cartas del rival
+function estadoMatchmaking(PDO $pdo) {
+    $yo  = usuarioId($pdo);
+    $neg = negociacionAbierta($pdo, $yo);
+    if (!$neg) responder(['negociacion' => null]);
+
+    $soyA    = (int)$neg['fk_usuario_A'] === $yo;
+    $rivalId = (int)($soyA ? $neg['fk_usuario_B'] : $neg['fk_usuario_A']);
+    $rival   = consultar($pdo, 'SELECT username FROM usuarios WHERE id = ?', [$rivalId])[0]['username'];
+
+    $unicos = array_values(array_unique(
+        idsCartas($soyA ? $neg['coleccion_mesa_B'] : $neg['coleccion_mesa_A'])
+    ));
+    $cartas = [];
+    if ($unicos) {
+        $marcas = implode(',', array_fill(0, count($unicos), '?'));
+        $cartas = consultar($pdo,
+            "SELECT id, nombre, especie, periodo, imagen_url AS imagenUrl, hp
+             FROM dinosaurios WHERE id IN ($marcas)", $unicos);
+    }
+
+    responder(['negociacion' => [
+        'negociacion_id'   => (int)$neg['negociacion_id'],
+        'rival_id'         => $rivalId,
+        'rival'            => $rival,
+        'cartas_rival'     => $cartas,
+        'confirmado_mio'   => (int)$neg[$soyA ? 'confirmado_A' : 'confirmado_B'],
+        'confirmado_rival' => (int)$neg[$soyA ? 'confirmado_B' : 'confirmado_A'],
+    ]]);
+}
+
+// POST cartas="3,7": guarda mi mesa y anula las confirmaciones
+function guardarMesa(PDO $pdo) {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') responder(['error' => 'Método no permitido'], 405);
+    $yo  = usuarioId($pdo);
+    $neg = negociacionAbierta($pdo, $yo);
+    if (!$neg) responder(['error' => 'No estás en ninguna negociación'], 400);
+
+    $col = ((int)$neg['fk_usuario_A'] === $yo) ? 'coleccion_mesa_A' : 'coleccion_mesa_B';
+    $ids = implode(',', idsCartas($_POST['cartas'] ?? ''));
+
+    $pdo->prepare("UPDATE negociacion SET $col = ?, confirmado_A = 0, confirmado_B = 0
+                   WHERE negociacion_id = ?")
+        ->execute([$ids, $neg['negociacion_id']]);
+    responder(['ok' => true]);
+}
+
+// POST confirmar=1|0: si confirman los dos, se hace el intercambio
+function confirmar(PDO $pdo) {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') responder(['error' => 'Método no permitido'], 405);
+    $yo = usuarioId($pdo);
+
+    $pdo->beginTransaction();   // bloquea la fila para que no se intercambie dos veces
+    $neg = negociacionAbierta($pdo, $yo, true);
+    if (!$neg) {
+        $pdo->rollBack();
+        responder(['error' => 'No estás en ninguna negociación'], 400);
+    }
+
+    $col   = ((int)$neg['fk_usuario_A'] === $yo) ? 'confirmado_A' : 'confirmado_B';
+    $valor = (($_POST['confirmar'] ?? '1') === '1') ? 1 : 0;
+    $pdo->prepare("UPDATE negociacion SET $col = ? WHERE negociacion_id = ?")
+        ->execute([$valor, $neg['negociacion_id']]);
+    $neg[$col] = $valor;
+
+    $hecho = false;
+    if ($neg['confirmado_A'] && $neg['confirmado_B']) {
+        $a = (int)$neg['fk_usuario_A'];
+        $b = (int)$neg['fk_usuario_B'];
+        $daA = idsCartas($neg['coleccion_mesa_A']);
+        $daB = idsCartas($neg['coleccion_mesa_B']);
+
+        if (!$daA || !$daB || !tieneCartas($pdo, $a, $daA) || !tieneCartas($pdo, $b, $daB)) {
+            $pdo->rollBack();
+            responder(['error' => 'Los dos deben ofrecer cartas que tengan'], 400);
+        }
+        $stmt = $pdo->prepare('CALL IntercambiarCartas(?, ?, ?, ?)');
+        $stmt->execute([$a, $b, implode(',', $daA), implode(',', $daB)]);
+        $stmt->closeCursor();
+
+        $pdo->prepare("UPDATE negociacion SET estado = 'cerrado' WHERE negociacion_id = ?")
+            ->execute([$neg['negociacion_id']]);
+        $hecho = true;
+    }
+    $pdo->commit();
+    responder(['ok' => true, 'intercambiado' => $hecho]);
+}
 
 /* ---------- Router ---------- */
 
 try {
     switch ($_GET['accion'] ?? '') {
+        case 'buscar': buscarOponente($pdo);   break;
+        case 'estado': estadoMatchmaking($pdo); break;      
         case 'login':     login($pdo);     break;
         case 'registro':  registro($pdo);  break;
         case 'logout':    logout();        break;
         case 'coleccion': coleccion($pdo); break;
         case 'dinos':     dinos($pdo);     break;
+        case 'mesa':     guardarMesa($pdo); break;
+        case 'confirmar': confirmar($pdo);  break;
         default:          responder(['error' => 'Acción no válida'], 404);
     }
-} catch (PDOException $e) {
+}  catch (PDOException $e) {
+    error_log('API: ' . $e->getMessage());
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }
-    responder(['error' => 'Error en la base de datos'], 500);
+    responder(['error' => 'Error en la base de datos', 'detalle' => $e->getMessage()], 500);
 }

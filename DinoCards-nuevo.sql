@@ -39,39 +39,72 @@ create table colecciones(
 create table solicitudes(solicitud_id int primary key auto_increment, fecha datetime not null, fk_usuario_A int not null, fk_usuario_B int null, estado enum('Pendiente', 'Aceptada', 'Cancelada'));
 create table negociacion(negociacion_id int primary key auto_increment,fk_usuario_A int not null,fk_usuario_B int not null,coleccion_mesa_A varchar (1000),estado enum('abierto', 'cerrado'), coleccion_mesa_B varchar(1000));
 
-drop procedure if exists ListaUsuariosReadyTrading;
-Delimiter $$
-create procedure ListaUsuariosReadyTrading()
+
+drop procedure if exists BuscarOponente;
+delimiter $$
+create procedure BuscarOponente(in _usuariol varchar(64), in _usuariov varchar(64), out _res int)
 begin
-	select id, username from usuarios where listo_negociar = 1;
+  declare v_rival int default null;
+
+  select id into v_rival from usuarios where username = _usuariov;
+
+  if v_rival is null then
+    set _res = -1;
+  elseif v_rival = _usuariol then
+    set _res = -2;
+    else
+    -- ¿me había buscado ya él a mí?
+    if exists (select 1 from solicitudes
+               where fk_usuario_A = v_rival and fk_usuario_B = _usuariol
+                 and estado = 'Pendiente') then
+      update solicitudes set estado = 'Aceptada'
+        where fk_usuario_A = v_rival and fk_usuario_B = _usuariol and estado = 'Pendiente';
+      insert into negociacion (fk_usuario_A, fk_usuario_B, estado)
+        values (v_rival, _usuariol, 'abierto');
+      set _res = 1;     -- emparejados
+    else
+      -- cancelo mi solicitud anterior y dejo la nueva
+      update solicitudes set estado = 'Cancelada'
+        where fk_usuario_A = _usuariol and estado = 'Pendiente';
+      insert into solicitudes (fecha, fk_usuario_A, fk_usuario_B, estado)
+        values (now(), _usuariol, v_rival, 'Pendiente');
+      set _res = 0;     -- esperando
+    end if;
+  end if;
+
 end$$
 delimiter ;
 
-drop procedure if exists ListoNegocio;
+drop procedure if exists EstadoMatchmaking;
 delimiter $$
-create procedure ListoNegocio(in _usuario_id int, out _res int)
+create procedure EstadoMatchmaking(in _yo int)
 begin
-  if not exists (select 1 from usuarios where id = _usuario_id) then
-    set _res = -1;
-  else
-    update usuarios set listo_negociar = 1 where id = _usuario_id;
-    set _res = 0;
-  end if;
+  select n.negociacion_id,
+         if(n.fk_usuario_A = _yo, n.fk_usuario_B, n.fk_usuario_A) as rival_id,
+         u.username as rival
+  from negociacion n
+  join usuarios u
+    on u.id = if(n.fk_usuario_A = _yo, n.fk_usuario_B, n.fk_usuario_A)
+  where n.estado = 'abierto'
+    and _yo in (n.fk_usuario_A, n.fk_usuario_B)
+  limit 1;
 end$$
 delimiter ;
+
+
+
 
 drop procedure if exists IntercambiarCartas;
 delimiter $$
 create procedure IntercambiarCartas(
   in _usuario1 int,
   in _usuario2 int,
-  in _cartas1 varchar(1000),   -- ids que da el usuario 1, ej: '3,7,12'
-  in _cartas2 varchar(1000)    -- ids que da el usuario 2, ej: '5,9'
+  in _cartas1 varchar(1000),  
+  in _cartas2 varchar(1000)    
 )
 begin
   declare v_id int;
 
-  -- Cartas del usuario 1 -> usuario 2
   set _cartas1 = concat(_cartas1, ',');
   while length(_cartas1) > 0 do
     set v_id = substring_index(_cartas1, ',', 1);

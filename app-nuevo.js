@@ -340,7 +340,7 @@ function htmlCartaMini(d, marcar = false) {
     const per = norm(d.periodo);
     const p = PERIODOS[per] || { n: d.periodo, r: '', e: '🦴' };
     const sel = marcar && seleccionadas.has(String(d.nombre)) ? ' selected' : '';
-    return `<article class="card mini ${esc(per)}${sel}" data-id="${esc(d.nombre)}" title="${esc(d.nombre)} · ${esc(p.n)} · ❤️ ${d.hp}" aria-label="${esc(d.nombre)}, ${esc(p.n)}">
+    return `<article class="card mini ${esc(per)}${sel}" data-id="${esc(d.id)}" title="${esc(d.nombre)} · ${esc(p.n)} · ❤️ ${d.hp}" aria-label="${esc(d.nombre)}, ${esc(p.n)}">
       <div class="inner">
         <div class="art">
           <div class="ph" aria-hidden="true">🦖</div>
@@ -362,7 +362,7 @@ function RenderColeccionTrade() {
 function RenderColeccionSelected() {
     // zona trade: solo las elegidas
     $('zona-trade').innerHTML = coleccion
-        .filter(d => seleccionadas.has(String(d.nombre)))
+        .filter(d => seleccionadas.has(String(d.id)))
         .map(d => htmlCartaMini(d))
         .join('');
 }
@@ -396,14 +396,82 @@ function iniciarTrade() {
         RenderColeccionTrade();
     });
     
-    ConfirmacionHtml.addEventListener('click', () => {
-    Confirmacion = !Confirmacion;   // alterna true/false
-    if (Confirmacion) {ConfirmacionHtml.classList.toggle('parado', Confirmacion); $('flecha-usu').classList.toggle('Confirmado')}
-    else {ConfirmacionHtml.classList.toggle('parado', Confirmacion);$('flecha-usu').classList.toggle('Confirmado')};
-});
+
+    ConfirmacionHtml.addEventListener('click', async () => {
+        if (!negociacionId) { alert('Primero busca un jugador con el botón Tradeo.'); return; }
+
+        ponerConfirmacion(!Confirmacion);
+        const data = await llamar('confirmar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ confirmar: Confirmacion ? '1' : '0' })
+        });
+        if (!data || data.error) {
+            ponerConfirmacion(false);
+            if (data && data.error) alert(data.error);
+            return;
+        }
+        if (data.intercambiado) terminarIntercambio();
+    });
+};
+
+let negociacionId = null;
+let rival = null;
+let sondeo = null;
+
+const estadoMM = texto => { $('estado-matchmaking').textContent = texto; };
+
+async function llamar(accion, opciones) {
+    try {
+        const res = await fetch(API + accion, opciones);
+        if (res.status === 401) { location.href = 'index-nuevo.html'; return null; }
+        return await res.json();
+    } catch {
+        estadoMM('No se pudo conectar con el servidor.');
+        return null;
+    }
 }
+
+function emparejado(neg) {
+    clearInterval(sondeo);
+    negociacionId = neg.negociacion_id;
+    rival = neg.rival;
+    estadoMM('¡Emparejado con ' + rival + '!');
+    setTimeout(() => $('Matchmaking').classList.add('oculto'), 1500);
+}
+
+// pregunta cada 2 s si el otro ya me ha buscado
+function esperarRival() {
+    clearInterval(sondeo);
+    sondeo = setInterval(async () => {
+        const data = await llamar('estado');
+        if (data && data.negociacion) emparejado(data.negociacion);
+    }, 2000);
+}
+
+async function buscar() {
+    const nombre = $('nombre-rival').value.trim();
+    if (!nombre) { estadoMM('Escribe un nombre.'); return; }
+
+    const data = await llamar('buscar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ nombre })
+    });
+    if (!data) return;
+
+    if (data.res === -1)      estadoMM('Ese usuario no existe.');
+    else if (data.res === -2) estadoMM('No puedes tradear contigo mismo.');
+    else if (data.res === 0)  { estadoMM('Esperando a que ' + nombre + ' te busque...'); esperarRival(); }
+    else if (data.res === 1)  {
+        const e = await llamar('estado');
+        if (e && e.negociacion) emparejado(e.negociacion);
+    }
+}
+
 function Matchmaking() {
     $('iniciarTradeo').addEventListener('click', () => $('Matchmaking').classList.toggle('oculto'));
+    $('btn-buscar').addEventListener('click', buscar);
     iniciarTrade();
 }
 

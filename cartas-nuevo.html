@@ -161,12 +161,13 @@
         
  
     </main>
-    <div id="Matchmaking" class="Matchmaking oculto">
-        <h1>Matchmaking</h1>
-        <label>-Añade aqui el nombre de usuario con el que querrias tradear cartas-</label><br>
-        <input type="text" placeholder="Nombre usuario: pepito234">
-        <button type="submit"></button>
-    </div>
+        <div id="Matchmaking" class="Matchmaking oculto">
+            <h1>Matchmaking</h1>
+            <label for="nombre-rival">Añade aquí el nombre de usuario con el que quieres tradear</label><br>
+            <input type="text" id="nombre-rival" placeholder="Nombre usuario: pepito234">
+            <button type="button" id="btn-buscar">Vamos!!!</button>
+            <p id="estado-matchmaking"></p>
+        </div>
     <section id="" class="caja trade">
             <div class="usuario-trade side">
                 
@@ -187,11 +188,11 @@
             <div class="invitado-trade side">
                 <div class="upper inv">
                     <div class="nav">
-                    <ul><li id="invitado-cant">Objetos registrados: </li></ul>
+                        <ul><li id="invitado-cant">Objetos registrados: </li></ul>
                     </div>
-                    <img src="Interrogacion-nueva.png" alt="interrogacion" style="max-height: 650px; max-width: 540px; margin: auto;">
+                    <div class="zona-trade oculto" id="zona-invitado"></div>
+                    <img id="interrogacion" src="Interrogacion-nueva.png" alt="interrogacion" style="max-height: 650px; max-width: 540px; margin: auto;">
                 </div>
-                
             </div>
         </section>
         <!-- Pie de página -->
