@@ -186,7 +186,9 @@ end$$
 
 delimiter ;
 
- 
+alter table negociacion
+  add column confirmado_A tinyint not null default 0,
+  add column confirmado_B tinyint not null default 0;
 
 
 

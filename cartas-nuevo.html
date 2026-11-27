@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
 
-    <link rel="stylesheet" href="style-nuevo.css">
+    <link rel="stylesheet" href="style/style-nuevo.css">
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <title>DinoFusion Cards</title>
@@ -37,7 +37,8 @@
                 <path d="M0 0 C 14 -10, 14 -30, 0 -46 C -14 -30, -14 -10, 0 0Z" fill="#6cc4b4" stroke="#3a9a94" stroke-width="3" transform="translate(172 48) rotate(30)"/>
 </svg></div>
             <h1 class="titulo"><span class="dino">Dino</span>Fusion<br>Cards</h1>
-<p class="inicio-de-sesión"><span id="nombre-usuario"></span> <a href="api-nuevo.php?accion=logout" class="logout">Cerrar sesión</a></p>        </header>
+<p class="inicio-de-sesión"><span id="nombre-usuario"></span> <a href="api-nuevo.php?accion=logout" class="logout">Cerrar sesión</a></p>        
+</header>
  
         <!-- Banner grande -->
 <section class="caja banner carrusel" id="carrusel" role="region" aria-roledescription="carrusel" aria-label="Novedades">
@@ -167,13 +168,14 @@
             <input type="text" id="nombre-rival" placeholder="Nombre usuario: pepito234">
             <button type="button" id="btn-buscar">Vamos!!!</button>
             <p id="estado-matchmaking"></p>
+            <button type="button" id="btn-cancelarTradeo">-Cancelar-</button>
         </div>
     <section id="" class="caja trade">
             <div class="usuario-trade side">
                 
                 <div class="upper">
                     <div class="nav">
-                    <ul><li id="usuario-cant">Objetos registrados: </li></ul>
+                    <ul><li id="usuario-cant" class="cantidad">Objetos registrados: </li></ul>
                     <button id="Confirmacion">Confirmar</button>
                     </div>
                     <div class="zona-trade" id="zona-trade"></div>
@@ -182,16 +184,16 @@
             </div>
             <div class="control-trade">
             <button id="iniciarTradeo">Tradeo</button>
-            <img src="flecha-correcta.png" alt="flecha usuario" id="flecha-usu">
-            <img src="flecha-correcta-inv.png" alt="fecha visitante" srcset="" id="flecha-inv">
+            <img src="media/flecha-correcta.png" alt="flecha usuario" id="flecha-usu">
+            <img src="media/flecha-correcta-inv.png" alt="fecha visitante" srcset="" id="flecha-inv">
             </div>
             <div class="invitado-trade side">
                 <div class="upper inv">
                     <div class="nav">
-                        <ul><li id="invitado-cant">Objetos registrados: </li></ul>
+                        <ul><li id="invitado-cant" class="cantidad">Objetos registrados: </li></ul>
                     </div>
                     <div class="zona-trade oculto" id="zona-invitado"></div>
-                    <img id="interrogacion" src="Interrogacion-nueva.png" alt="interrogacion" style="max-height: 650px; max-width: 540px; margin: auto;">
+                    <img id="interrogacion" src="media/Interrogacion-nueva.png" alt="interrogacion" style="max-height: 650px; max-width: 540px; margin: auto;">
                 </div>
             </div>
         </section>

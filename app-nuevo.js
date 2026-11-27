@@ -333,13 +333,23 @@ function iniciarFiltros() {
     5. TRADE
    =========================================================== */
 let Confirmacion = false;
-let ConfirmacionHtml = document.getElementById('Confirmacion');
-const seleccionadas = new Set();   // nombres de las cartas elegidas
+const ConfirmacionHtml = $('Confirmacion');
+const contadorHTML = $('usuario-cant cantidad');
+const seleccionadas = new Set();   // ids (en texto) de las cartas elegidas
+
+let negociacionId = null;
+let rival = null;
+let sondeo = null;
+let firmaRival = '';
+let ocupado = false;               // true mientras se envía una confirmación
+
+const CABECERA = { 'Content-Type': 'application/x-www-form-urlencoded' };
+const estadoMM = texto => { $('estado-matchmaking').textContent = texto; };
 
 function htmlCartaMini(d, marcar = false) {
     const per = norm(d.periodo);
     const p = PERIODOS[per] || { n: d.periodo, r: '', e: '🦴' };
-    const sel = marcar && seleccionadas.has(String(d.nombre)) ? ' selected' : '';
+    const sel = marcar && seleccionadas.has(String(d.id)) ? ' selected' : '';
     return `<article class="card mini ${esc(per)}${sel}" data-id="${esc(d.id)}" title="${esc(d.nombre)} · ${esc(p.n)} · ❤️ ${d.hp}" aria-label="${esc(d.nombre)}, ${esc(p.n)}">
       <div class="inner">
         <div class="art">
@@ -354,99 +364,119 @@ function htmlCartaMini(d, marcar = false) {
 }
 
 function RenderColeccionTrade() {
-    // todas las cartas se quedan en el grid; las elegidas llevan la clase selected
     $('grid-mini').innerHTML = filtrar(coleccion).map(d => htmlCartaMini(d, true)).join('');
     RenderColeccionSelected();
 }
 
 function RenderColeccionSelected() {
-    // zona trade: solo las elegidas
     $('zona-trade').innerHTML = coleccion
         .filter(d => seleccionadas.has(String(d.id)))
         .map(d => htmlCartaMini(d))
         .join('');
 }
 
-let contador = 0;
-let contadorHTML = document.getElementById('usuario-cant');
-
-
-function iniciarTrade() {
-    $('grid-mini').addEventListener('click', e => {
-        if (Confirmacion) return;
-        const carta = e.target.closest('.mini');
-        if (!carta) return;
-        const id = carta.dataset.id;
-
-        if (seleccionadas.has(id)) {seleccionadas.delete(id); contador -= 1;}
-        else {seleccionadas.add(id), contador += 1}; 
-        contadorHTML.innerHTML = 'Objetos registrados: ' + contador;
-
-        RenderColeccionTrade();
-    });
-
-    $('zona-trade').addEventListener('click', e => {
-        if (Confirmacion) return;
-        const carta = e.target.closest('.mini');
-        if (!carta) return;
-
-        seleccionadas.delete(carta.dataset.id);
-        contador -= 1;
-        contadorHTML.innerHTML = 'Objetos registrados: ' + contador;
-        RenderColeccionTrade();
-    });
-    
-
-    ConfirmacionHtml.addEventListener('click', async () => {
-        if (!negociacionId) { alert('Primero busca un jugador con el botón Tradeo.'); return; }
-
-        ponerConfirmacion(!Confirmacion);
-        const data = await llamar('confirmar', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({ confirmar: Confirmacion ? '1' : '0' })
-        });
-        if (!data || data.error) {
-            ponerConfirmacion(false);
-            if (data && data.error) alert(data.error);
-            return;
-        }
-        if (data.intercambiado) terminarIntercambio();
-    });
-};
-
-let negociacionId = null;
-let rival = null;
-let sondeo = null;
-
-const estadoMM = texto => { $('estado-matchmaking').textContent = texto; };
+function actualizarContador() {
+    contadorHTML.textContent = 'Objetos registrados: ' + seleccionadas.size;
+}
 
 async function llamar(accion, opciones) {
+    let res;
     try {
-        const res = await fetch(API + accion, opciones);
-        if (res.status === 401) { location.href = 'index-nuevo.html'; return null; }
-        return await res.json();
+        res = await fetch(API + accion, opciones);
     } catch {
         estadoMM('No se pudo conectar con el servidor.');
         return null;
     }
+    if (res.status === 401) { location.href = 'index-nuevo.html'; return null; }
+
+    const texto = await res.text();
+    try {
+        return JSON.parse(texto);
+    } catch {
+        console.error('Respuesta no válida de "' + accion + '":', texto);
+        estadoMM('El servidor devolvió algo inesperado (mira la consola).');
+        return null;
+    }
+}
+
+function ponerConfirmacion(valor) {
+    Confirmacion = valor;
+    ConfirmacionHtml.classList.toggle('parado', valor);
+    $('flecha-usu').classList.toggle('Confirmado', valor);
+    $('iniciarTradeo').classList.toggle('oculto', valor);
+}
+
+// guarda en el servidor las cartas que tengo en mi mesa
+function enviarMesa() {
+    if (!negociacionId) return;
+    llamar('mesa', {
+        method: 'POST',
+        headers: CABECERA,
+        body: new URLSearchParams({ cartas: [...seleccionadas].join(',') })
+    });
 }
 
 function emparejado(neg) {
-    clearInterval(sondeo);
     negociacionId = neg.negociacion_id;
     rival = neg.rival;
     estadoMM('¡Emparejado con ' + rival + '!');
     setTimeout(() => $('Matchmaking').classList.add('oculto'), 1500);
+    enviarMesa();   // el servidor queda igual que lo que veo en pantalla
 }
 
-// pregunta cada 2 s si el otro ya me ha buscado
-function esperarRival() {
+// pinta la mesa del rival (solo si ha cambiado, para que no parpadeen las imágenes)
+function pintarRival(neg) {
+    const firma = neg.cartas_rival.map(d => d.id).join(',');
+    if (firma !== firmaRival) {
+        firmaRival = firma;
+        $('zona-invitado').innerHTML = neg.cartas_rival.map(d => htmlCartaMini(d)).join('');
+    }
+    $('interrogacion').classList.add('oculto');
+    $('zona-invitado').classList.remove('oculto');
+    $('invitado-cant').textContent = rival + ' · Objetos registrados: ' + neg.cartas_rival.length;
+    $('flecha-inv').classList.toggle('Confirmado', !!neg.confirmado_rival);
+
+    // si el servidor anuló mi confirmación (el rival cambió su mesa), me desbloqueo
+    if (!ocupado && Confirmacion !== !!neg.confirmado_mio) ponerConfirmacion(!!neg.confirmado_mio);
+}
+
+async function terminarIntercambio() {
     clearInterval(sondeo);
-    sondeo = setInterval(async () => {
-        const data = await llamar('estado');
-        if (data && data.negociacion) emparejado(data.negociacion);
-    }, 2000);
+    negociacionId = null;
+    rival = null;
+    firmaRival = '';
+    seleccionadas.clear();
+    finalizarContador();
+    ponerConfirmacion(false);
+    $('flecha-inv').classList.remove('Confirmado');
+    $('zona-invitado').innerHTML = '';
+    $('zona-invitado').classList.add('oculto');
+    $('interrogacion').classList.remove('oculto');
+    $('invitado-cant').textContent = 'Objetos registrados: ';
+    await cargarColeccion();            // recarga la colección ya intercambiada
+    alert('¡Intercambio completado!');
+}
+
+async function tick() {
+    const data = await llamar('estado');
+    if (!data) return;
+    const neg = data.negociacion;
+    if (neg) {
+        if (!negociacionId) emparejado(neg);
+        pintarRival(neg);
+    } else if (negociacionId) {
+        terminarIntercambio();          // ya no hay negociación abierta: se cerró
+    }
+}
+
+function finalizarContador() {
+    $('cantidad').textContent = 'Objetos registrados: ';
+}
+
+function iniciarSondeo() {
+    clearInterval(sondeo);
+    sondeo = setInterval(tick, 2000);
+    tick();
 }
 
 async function buscar() {
@@ -455,24 +485,78 @@ async function buscar() {
 
     const data = await llamar('buscar', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        headers: CABECERA,
         body: new URLSearchParams({ nombre })
     });
     if (!data) return;
+    if (data.error) { estadoMM(data.error); return; }
 
     if (data.res === -1)      estadoMM('Ese usuario no existe.');
     else if (data.res === -2) estadoMM('No puedes tradear contigo mismo.');
-    else if (data.res === 0)  { estadoMM('Esperando a que ' + nombre + ' te busque...'); esperarRival(); }
-    else if (data.res === 1)  {
-        const e = await llamar('estado');
-        if (e && e.negociacion) emparejado(e.negociacion);
+    else {
+        estadoMM(data.res === 1 ? 'Emparejando...' : 'Esperando a que ' + nombre + ' te busque...');
+        iniciarSondeo();
     }
+}
+
+function iniciarTrade() {
+    $('grid-mini').addEventListener('click', e => {
+        if (Confirmacion) return;
+        const carta = e.target.closest('.mini');
+        if (!carta) return;
+        const id = carta.dataset.id;
+
+        if (seleccionadas.has(id)) seleccionadas.delete(id);
+        else seleccionadas.add(id);
+
+        actualizarContador();
+        RenderColeccionTrade();
+        enviarMesa();
+    });
+
+    $('zona-trade').addEventListener('click', e => {
+        if (Confirmacion) return;
+        const carta = e.target.closest('.mini');
+        if (!carta) return;
+
+        seleccionadas.delete(carta.dataset.id);
+        actualizarContador();
+        RenderColeccionTrade();
+        enviarMesa();
+    });
+
+    ConfirmacionHtml.addEventListener('click', async () => {
+        if (!negociacionId) { alert('Primero busca a un jugador con el botón Tradeo.'); return; }
+        if (ocupado) return;
+
+        ocupado = true;
+        const nuevo = !Confirmacion;
+        ponerConfirmacion(nuevo);
+
+        const data = await llamar('confirmar', {
+            method: 'POST',
+            headers: CABECERA,
+            body: new URLSearchParams({ confirmar: nuevo ? '1' : '0' })
+        });
+        ocupado = false;
+
+        if (!data || data.error) {
+            ponerConfirmacion(!nuevo);
+            if (data && data.error) alert(data.error);
+            return;
+        }
+        if (data.intercambiado) terminarIntercambio();
+    });
 }
 
 function Matchmaking() {
     $('iniciarTradeo').addEventListener('click', () => $('Matchmaking').classList.toggle('oculto'));
     $('btn-buscar').addEventListener('click', buscar);
+    $('btn-cancelarTradeo').addEventListener('click', () => $('Matchmaking').classList.toggle('oculto'));
     iniciarTrade();
+
+    // si recargo la página en mitad de un trade, retomo la negociación abierta
+    llamar('estado').then(d => { if (d && d.negociacion) iniciarSondeo(); });
 }
 
 /* ==========================================================
